@@ -1,6 +1,7 @@
 export function getAll(callback: (error: any, contacts: Contact[]) => void): void;
 export function getAllWithoutPhotos(callback: (error: any, contacts: Contact[]) => void): void;
 export function getContactById(contactId: string, callback: (error: any, contact: Contact) => void): void;
+export function getCount(callback: (count: number) => void): void;
 export function getPhotoForId(contactId: string, callback: (error: any, photoUri: string) => void): void;
 export function addContact(contact: Contact, callback: (error?: any) => void): void;
 export function openContactForm(contact: Contact, callback: (error: any, contact: Contact) => void): void;
@@ -44,6 +45,7 @@ export interface Birthday {
 
 export interface Contact {
     recordID: string;
+    backTitle: string;
     company: string;
     emailAddresses: EmailAddress[];
     familyName: string;

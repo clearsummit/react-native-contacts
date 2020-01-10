@@ -107,6 +107,24 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
         myAsyncTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
+    @ReactMethod
+    public void getCount(final Callback callback) {
+        AsyncTask<Void,Void,Void> myAsyncTask = new AsyncTask<Void,Void,Void>() {
+            @Override
+            protected Void doInBackground(final Void ... params) {
+                Context context = getReactApplicationContext();
+                ContentResolver cr = context.getContentResolver();
+
+                ContactsProvider contactsProvider = new ContactsProvider(cr);
+                Integer contacts = contactsProvider.getContactsCount();
+
+                callback.invoke(contacts);
+                return null;
+            }
+        };
+        myAsyncTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
     /**
      * Retrieves contacts matching String.
      * Uses raw URI when <code>rawUri</code> is <code>true</code>, makes assets copy otherwise.
@@ -147,6 +165,30 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                 ContentResolver cr = context.getContentResolver();
                 ContactsProvider contactsProvider = new ContactsProvider(cr);
                 WritableArray contacts = contactsProvider.getContactsByPhoneNumber(phoneNumber);
+
+                callback.invoke(null, contacts);
+                return null;
+            }
+        };
+        myAsyncTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    /**
+     * Retrieves contacts matching an email address.
+     * Uses raw URI when <code>rawUri</code> is <code>true</code>, makes assets copy otherwise.
+     *
+     * @param emailAddress email address to match
+     * @param callback user provided callback to run at completion
+     */
+    @ReactMethod
+    public void getContactsByEmailAddress(final String emailAddress, final Callback callback) {
+        AsyncTask<Void,Void,Void> myAsyncTask = new AsyncTask<Void,Void,Void>() {
+            @Override
+            protected Void doInBackground(final Void ... params) {
+                Context context = getReactApplicationContext();
+                ContentResolver cr = context.getContentResolver();
+                ContactsProvider contactsProvider = new ContactsProvider(cr);
+                WritableArray contacts = contactsProvider.getContactsByEmailAddress(emailAddress);
 
                 callback.invoke(null, contacts);
                 return null;
@@ -322,6 +364,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
         String[] postalAddressesRegion = null;
         String[] postalAddressesPostCode = null;
         String[] postalAddressesCountry = null;
+        String[] postalAddressesFormattedAddress = null;
         Integer[] postalAddressesLabel = null;
         if (postalAddresses != null) {
             numOfPostalAddresses = postalAddresses.size();
@@ -331,6 +374,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
             postalAddressesRegion = new String[numOfPostalAddresses];
             postalAddressesPostCode = new String[numOfPostalAddresses];
             postalAddressesCountry = new String[numOfPostalAddresses];
+            postalAddressesFormattedAddress = new String[numOfPostalAddresses];
             postalAddressesLabel = new Integer[numOfPostalAddresses];
             for (int i = 0; i < numOfPostalAddresses; i++) {
                 postalAddressesStreet[i] = postalAddresses.getMap(i).getString("street");
@@ -339,6 +383,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                 postalAddressesRegion[i] = postalAddresses.getMap(i).getString("region");
                 postalAddressesPostCode[i] = postalAddresses.getMap(i).getString("postCode");
                 postalAddressesCountry[i] = postalAddresses.getMap(i).getString("country");
+                postalAddressesFormattedAddress[i] = postalAddresses.getMap(i).getString("formattedAddress");
                 postalAddressesLabel[i] = mapStringToPostalAddressType(postalAddresses.getMap(i).getString("label"));
             }
         }
@@ -392,6 +437,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
             structuredPostal.put(CommonDataKinds.StructuredPostal.REGION, postalAddressesRegion[i]);
             structuredPostal.put(CommonDataKinds.StructuredPostal.COUNTRY, postalAddressesCountry[i]);
             structuredPostal.put(CommonDataKinds.StructuredPostal.POSTCODE, postalAddressesPostCode[i]);
+            structuredPostal.put(CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS, postalAddressesFormattedAddress[i]);
             //No state column in StructuredPostal
             //structuredPostal.put(CommonDataKinds.StructuredPostal.???, postalAddressesState[i]);
             contactData.add(structuredPostal);

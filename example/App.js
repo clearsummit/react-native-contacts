@@ -31,7 +31,8 @@ export default class App extends Component<Props> {
     this.search = this.search.bind(this);
 
     this.state = {
-      contacts: []
+      contacts: [],
+      searchPlaceholder: "Search"
     };
   }
 
@@ -56,14 +57,23 @@ export default class App extends Component<Props> {
         this.setState({ contacts });
       }
     });
+
+    Contacts.getCount(count => {
+      this.setState({ searchPlaceholder: `Search ${count} contacts` });
+    });
   }
 
   search(text) {
     const phoneNumberRegex = /\b[\+]?[(]?[0-9]{2,6}[)]?[-\s\.]?[-\s\/\.0-9]{3,15}\b/m;
+    const emailAddressRegex = /^(([^<>()[\].,;:\s@"]+(\.[^<>()[\].,;:\s@"]+)*)|(".+"))@(([^<>()[\].,;:\s@"]+\.)+[^<>()[\].,;:\s@"]{2,})$/i;
     if (text === "" || text === null) {
       this.loadContacts();
     } else if (phoneNumberRegex.test(text)) {
       Contacts.getContactsByPhoneNumber(text, (err, contacts) => {
+        this.setState({ contacts });
+      });
+    } else if (emailAddressRegex.test(text)) {
+      Contacts.getContactsByEmailAddress(text, (err, contacts) => {
         this.setState({ contacts });
       });
     } else {
@@ -92,7 +102,10 @@ export default class App extends Component<Props> {
             }}
           />
         </View>
-        <SearchBar onChangeText={this.search} />
+        <SearchBar
+          searchPlaceholder={this.state.searchPlaceholder}
+          onChangeText={this.search}
+        />
         <ScrollView style={{ flex: 1 }}>
           {this.state.contacts.map(contact => {
             return (

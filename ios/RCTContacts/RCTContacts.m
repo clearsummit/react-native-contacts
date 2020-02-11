@@ -82,7 +82,7 @@ RCT_EXPORT_METHOD(getContactsMatchingString:(NSString *)string callback:(RCTResp
 {
     NSMutableArray *contacts = [[NSMutableArray alloc] init];
     NSError *contactError = nil;
-    NSArray *keys = @[
+    NSMutableArray *keys = [@[
         CNContactEmailAddressesKey,
         CNContactPhoneNumbersKey,
         CNContactFamilyNameKey,
@@ -97,7 +97,7 @@ RCT_EXPORT_METHOD(getContactsMatchingString:(NSString *)string callback:(RCTResp
         CNContactBirthdayKey,
         CNContactSocialProfilesKey,
         CNContactInstantMessageAddressesKey,
-    ];
+    ] mutableCopy];
     if (notesUsageEnabled) {
         [keys addObject: @[CNContactNoteKey]];
     }
@@ -142,13 +142,17 @@ RCT_EXPORT_METHOD(getContactsByPhoneNumber:(NSString *)string callback:(RCTRespo
         CNContactInstantMessageAddressesKey,
     ];
     CNPhoneNumber *cnPhoneNumber = [[CNPhoneNumber alloc] initWithStringValue:phoneNumber];
-    NSArray *arrayOfContacts = [store unifiedContactsMatchingPredicate:[CNContact predicateForContactsMatchingPhoneNumber:cnPhoneNumber]
-                                                           keysToFetch:keys
-                                                                 error:&contactError];
-    [arrayOfContacts enumerateObjectsUsingBlock:^(CNContact * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-        NSDictionary *contactDictionary = [self contactToDictionary:obj withThumbnails:true];
-        [contacts addObject:contactDictionary];
-    }];
+    if (@available(iOS 11.0, *)) {
+        NSArray *arrayOfContacts = [store unifiedContactsMatchingPredicate:[CNContact predicateForContactsMatchingPhoneNumber:cnPhoneNumber]
+                                                               keysToFetch:keys
+                                                                     error:&contactError];
+        [arrayOfContacts enumerateObjectsUsingBlock:^(CNContact * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            NSDictionary *contactDictionary = [self contactToDictionary:obj withThumbnails:true];
+            [contacts addObject:contactDictionary];
+        }];
+    } else {
+        // Fallback on earlier versions
+    }
     callback(@[[NSNull null], contacts]);
 }
 
@@ -180,13 +184,17 @@ RCT_EXPORT_METHOD(getContactsByEmailAddress:(NSString *)string callback:(RCTResp
         CNContactUrlAddressesKey,
         CNContactBirthdayKey
     ];
-    NSArray *arrayOfContacts = [store unifiedContactsMatchingPredicate:[CNContact predicateForContactsMatchingEmailAddress:emailAddress]
-                                                           keysToFetch:keys
-                                                                 error:&contactError];
-    [arrayOfContacts enumerateObjectsUsingBlock:^(CNContact * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-        NSDictionary *contactDictionary = [self contactToDictionary:obj withThumbnails:true];
-        [contacts addObject:contactDictionary];
-    }];
+    if (@available(iOS 11.0, *)) {
+        NSArray *arrayOfContacts = [store unifiedContactsMatchingPredicate:[CNContact predicateForContactsMatchingEmailAddress:emailAddress]
+                                                               keysToFetch:keys
+                                                                     error:&contactError];
+        [arrayOfContacts enumerateObjectsUsingBlock:^(CNContact * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            NSDictionary *contactDictionary = [self contactToDictionary:obj withThumbnails:true];
+            [contacts addObject:contactDictionary];
+        }];
+    } else {
+        // Fallback on earlier versions
+    }
     callback(@[[NSNull null], contacts]);
 }
 
@@ -230,14 +238,14 @@ RCT_EXPORT_METHOD(getContactsByEmailAddress:(NSString *)string callback:(RCTResp
     ]];
     
     CNContactFetchRequest * request = [[CNContactFetchRequest alloc]initWithKeysToFetch:keysToFetch];
-    BOOL success = [contactStore enumerateContactsWithFetchRequest:request error:&contactError usingBlock:^(CNContact * __nonnull contact, BOOL * __nonnull stop){
+    [contactStore enumerateContactsWithFetchRequest:request error:&contactError usingBlock:^(CNContact * __nonnull contact, BOOL * __nonnull stop) {
         NSDictionary *contactDict = [self contactToDictionary: contact withThumbnails:false];
         [contacts addObject:contactDict];
     }];
     
-    int contactsCount = [contacts count];
+    NSUInteger contactsCount = [contacts count];
     
-    NSNumber *count = [NSNumber numberWithInt:contactsCount];
+    NSNumber *count = [NSNumber numberWithInteger:contactsCount];
     
     callback(@[count]);
 }
@@ -267,7 +275,7 @@ RCT_EXPORT_METHOD(getCount:(RCTResponseSenderBlock) callback)
     [contactStore containersMatchingPredicate:[CNContainer predicateForContainersWithIdentifiers: @[contactStore.defaultContainerIdentifier]] error:&contactError];
     
     
-    NSMutableArray *keysToFetch = [[NSMutableArray alloc]init];
+    NSMutableArray *keysToFetch = [[NSMutableArray alloc] init];
     [keysToFetch addObjectsFromArray:@[
         CNContactEmailAddressesKey,
         CNContactPhoneNumbersKey,
@@ -293,7 +301,7 @@ RCT_EXPORT_METHOD(getCount:(RCTResponseSenderBlock) callback)
     }
     
     CNContactFetchRequest * request = [[CNContactFetchRequest alloc]initWithKeysToFetch:keysToFetch];
-    BOOL success = [contactStore enumerateContactsWithFetchRequest:request error:&contactError usingBlock:^(CNContact * __nonnull contact, BOOL * __nonnull stop){
+    [contactStore enumerateContactsWithFetchRequest:request error:&contactError usingBlock:^(CNContact * __nonnull contact, BOOL * __nonnull stop) {
         NSDictionary *contactDict = [self contactToDictionary: contact withThumbnails:withThumbnails];
         [contacts addObject:contactDict];
     }];
@@ -335,14 +343,14 @@ RCT_EXPORT_METHOD(getCount:(RCTResponseSenderBlock) callback)
     if (jobTitle) {
         [output setObject: (jobTitle) ? jobTitle : @"" forKey:@"jobTitle"];
     }
-
+    
     if (notesUsageEnabled) {
         NSString *note = person.note;
         if(note){
             [output setObject: (note) ? note : @"" forKey:@"note"];
         }
     }
-
+    
     if (birthday) {
         if (birthday.month != NSDateComponentUndefined && birthday.day != NSDateComponentUndefined) {
             //months are indexed to 0 in JavaScript (0 = January) so we subtract 1 from NSDateComponents.month
@@ -625,12 +633,12 @@ RCT_EXPORT_METHOD(getContactById:(nonnull NSString *)recordID callback:(RCTRespo
     }
 }
 
-- (NSString *) getContact:(NSString *)recordID
-              addressBook:(CNContactStore*)addressBook
-           withThumbnails:(BOOL) withThumbnails
+- (NSDictionary *) getContact:(NSString *)recordID
+                  addressBook:(CNContactStore*)addressBook
+               withThumbnails:(BOOL) withThumbnails
 {
     NSError* contactError;
-    NSArray *keysToFetch = @[
+    NSMutableArray *keysToFetch = [@[
         CNContactEmailAddressesKey,
         CNContactPhoneNumbersKey,
         CNContactFamilyNameKey,
@@ -644,7 +652,7 @@ RCT_EXPORT_METHOD(getContactById:(nonnull NSString *)recordID callback:(RCTRespo
         CNContactBirthdayKey,
         CNContactSocialProfilesKey,
         CNContactInstantMessageAddressesKey,
-    ];
+    ] mutableCopy];
     if (notesUsageEnabled) {
         [keysToFetch addObject: CNContactNoteKey];
     }
@@ -694,7 +702,7 @@ RCT_EXPORT_METHOD(openContactForm:(NSDictionary *)contactData callback:(RCTRespo
     [self updateRecord:contact withData:contactData];
     
     CNContactViewController *controller = [CNContactViewController viewControllerForNewContact:contact];
-
+    
     controller.delegate = self;
     
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -735,7 +743,7 @@ RCT_EXPORT_METHOD(openExistingContact:(NSDictionary *)contactData callback:(RCTR
         CNContactViewController *contactViewController = [CNContactViewController viewControllerForContact:contact];
         
         // Add a cancel button which will close the view
-        contactViewController.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:backTitle == nil ? @"Cancel" : backTitle style:UIBarButtonSystemItemCancel target:self action:@selector(cancelContactForm)];
+        contactViewController.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:backTitle == nil ? @"Cancel" : backTitle style:UIBarButtonItemStylePlain target:self action:@selector(cancelContactForm)];
         contactViewController.delegate = self;
         
         
@@ -820,10 +828,9 @@ RCT_EXPORT_METHOD(updateContact:(NSDictionary *)contactData callback:(RCTRespons
     if (!contactStore) {
         return;
     }
-    
     NSError* contactError;
     NSString* recordID = [contactData valueForKey:@"recordID"];
-    NSArray * keysToFetch =@[
+    NSMutableArray * keysToFetch = [@[
         CNContactEmailAddressesKey,
         CNContactPhoneNumbersKey,
         CNContactFamilyNameKey,
@@ -839,12 +846,10 @@ RCT_EXPORT_METHOD(updateContact:(NSDictionary *)contactData callback:(RCTRespons
         CNContactBirthdayKey,
         CNContactSocialProfilesKey,
         CNContactInstantMessageAddressesKey,
-    ];
-    
+    ] mutableCopy];
     if (notesUsageEnabled) {
         [keysToFetch addObject: CNContactNoteKey];
     }
-
     @try {
         CNMutableContact* record = [[contactStore unifiedContactWithIdentifier:recordID keysToFetch:keysToFetch error:&contactError] mutableCopy];
         [self updateRecord:record withData:contactData];
@@ -882,7 +887,7 @@ RCT_EXPORT_METHOD(updateContact:(NSDictionary *)contactData callback:(RCTRespons
         NSString *note = [contactData valueForKey:@"note"];
         contact.note = note;
     }
-
+    
     if (birthday) {
         NSDateComponents *components;
         if (contact.birthday != nil) {

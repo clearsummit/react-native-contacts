@@ -8,6 +8,8 @@
     CNContactStore * contactStore;
     
     RCTResponseSenderBlock updateContactCallback;
+    
+    BOOL notesUsageEnabled;
 }
 
 - (instancetype)init
@@ -61,6 +63,11 @@ RCT_EXPORT_METHOD(requestPermission:(RCTResponseSenderBlock) callback)
     }];
 }
 
+RCT_EXPORT_METHOD(iosEnableNotesUsage:(BOOL) enabled)
+{
+    notesUsageEnabled = enabled;
+}
+
 RCT_EXPORT_METHOD(getContactsMatchingString:(NSString *)string callback:(RCTResponseSenderBlock) callback)
 {
     CNContactStore *contactStore = [[CNContactStore alloc] init];
@@ -91,6 +98,9 @@ RCT_EXPORT_METHOD(getContactsMatchingString:(NSString *)string callback:(RCTResp
         CNContactSocialProfilesKey,
         CNContactInstantMessageAddressesKey,
     ];
+    if (notesUsageEnabled) {
+        [keys addObject: @[CNContactNoteKey]];
+    }
     NSArray *arrayOfContacts = [store unifiedContactsMatchingPredicate:[CNContact predicateForContactsMatchingName:searchString]
                                                            keysToFetch:keys
                                                                  error:&contactError];
@@ -274,6 +284,10 @@ RCT_EXPORT_METHOD(getCount:(RCTResponseSenderBlock) callback)
         CNContactInstantMessageAddressesKey,
     ]];
     
+    if (notesUsageEnabled) {
+        [keysToFetch addObject: CNContactNoteKey];
+    }
+    
     if (withThumbnails) {
         [keysToFetch addObject:CNContactThumbnailImageDataKey];
     }
@@ -310,18 +324,25 @@ RCT_EXPORT_METHOD(getCount:(RCTResponseSenderBlock) callback)
         [output setObject: (familyName) ? familyName : @"" forKey:@"familyName"];
     }
     
-    if (middleName){
+    if (middleName) {
         [output setObject: (middleName) ? middleName : @"" forKey:@"middleName"];
     }
     
-    if (company){
+    if (company) {
         [output setObject: (company) ? company : @"" forKey:@"company"];
     }
     
-    if (jobTitle){
+    if (jobTitle) {
         [output setObject: (jobTitle) ? jobTitle : @"" forKey:@"jobTitle"];
     }
-    
+
+    if (notesUsageEnabled) {
+        NSString *note = person.note;
+        if(note){
+            [output setObject: (note) ? note : @"" forKey:@"note"];
+        }
+    }
+
     if (birthday) {
         if (birthday.month != NSDateComponentUndefined && birthday.day != NSDateComponentUndefined) {
             //months are indexed to 0 in JavaScript (0 = January) so we subtract 1 from NSDateComponents.month
@@ -624,6 +645,9 @@ RCT_EXPORT_METHOD(getContactById:(nonnull NSString *)recordID callback:(RCTRespo
         CNContactSocialProfilesKey,
         CNContactInstantMessageAddressesKey,
     ];
+    if (notesUsageEnabled) {
+        [keysToFetch addObject: CNContactNoteKey];
+    }
     CNContact* contact = [addressBook unifiedContactWithIdentifier:recordID keysToFetch:keysToFetch error:&contactError];
     if (!contact) {
         return nil;
@@ -670,8 +694,7 @@ RCT_EXPORT_METHOD(openContactForm:(NSDictionary *)contactData callback:(RCTRespo
     [self updateRecord:contact withData:contactData];
     
     CNContactViewController *controller = [CNContactViewController viewControllerForNewContact:contact];
-    
-    
+
     controller.delegate = self;
     
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -818,6 +841,10 @@ RCT_EXPORT_METHOD(updateContact:(NSDictionary *)contactData callback:(RCTRespons
         CNContactInstantMessageAddressesKey,
     ];
     
+    if (notesUsageEnabled) {
+        [keysToFetch addObject: CNContactNoteKey];
+    }
+
     @try {
         CNMutableContact* record = [[contactStore unifiedContactWithIdentifier:recordID keysToFetch:keysToFetch error:&contactError] mutableCopy];
         [self updateRecord:record withData:contactData];
@@ -851,6 +878,11 @@ RCT_EXPORT_METHOD(updateContact:(NSDictionary *)contactData callback:(RCTRespons
     contact.organizationName = company;
     contact.jobTitle = jobTitle;
     
+    if (notesUsageEnabled) {
+        NSString *note = [contactData valueForKey:@"note"];
+        contact.note = note;
+    }
+
     if (birthday) {
         NSDateComponents *components;
         if (contact.birthday != nil) {

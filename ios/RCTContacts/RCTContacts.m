@@ -692,11 +692,6 @@ RCT_EXPORT_METHOD(addContact:(NSDictionary *)contactData callback:(RCTResponseSe
 
 RCT_EXPORT_METHOD(openContactForm:(NSDictionary *)contactData callback:(RCTResponseSenderBlock)callback)
 {
-    CNContactStore* contactStore = [self contactsStore:callback];
-    if (!contactStore) {
-        return;
-    }
-    
     CNMutableContact * contact = [[CNMutableContact alloc] init];
     
     [self updateRecord:contact withData:contactData];
@@ -714,6 +709,16 @@ RCT_EXPORT_METHOD(openContactForm:(NSDictionary *)contactData callback:(RCTRespo
         }
         [viewController presentViewController:navigation animated:YES completion:nil];
         
+        if (@available(iOS 13, *)) {
+            viewController.view.window.backgroundColor=[UIColor blackColor];
+            navigation.navigationBar.topItem.title = @"";
+            UIView *statusBar = [[UIView alloc]initWithFrame:[UIApplication sharedApplication].keyWindow.windowScene.statusBarManager.statusBarFrame];
+            statusBar.backgroundColor = [UIColor blackColor];
+            statusBar.tag=1;
+            controller.navigationController.navigationBar.tintColor = [UIColor blackColor];
+            [[UIApplication sharedApplication].keyWindow addSubview:statusBar];
+        }
+
         updateContactCallback = callback;
     });
 }
@@ -819,6 +824,12 @@ RCT_EXPORT_METHOD(openExistingContact:(NSDictionary *)contactData callback:(RCTR
         }
         
         updateContactCallback = nil;
+    }
+    
+    UIView *statusBar = [[UIApplication sharedApplication].keyWindow viewWithTag:1];
+    
+    if(statusBar) {
+        [statusBar removeFromSuperview];
     }
 }
 

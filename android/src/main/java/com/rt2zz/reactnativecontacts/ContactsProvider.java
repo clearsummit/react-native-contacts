@@ -369,6 +369,9 @@ public class ContactsProvider {
                     contact.prefix = cursor.getString(cursor.getColumnIndex(StructuredName.PREFIX));
                     contact.suffix = cursor.getString(cursor.getColumnIndex(StructuredName.SUFFIX));
                     break;
+                case Note.CONTENT_ITEM_TYPE:
+                    contact.note = cursor.getString(cursor.getColumnIndex(Note.NOTE));
+                    break;
                 case Phone.CONTENT_ITEM_TYPE:
                     String phoneNumber = cursor.getString(cursor.getColumnIndex(Phone.NUMBER));
                     int phoneType = cursor.getInt(cursor.getColumnIndex(Phone.TYPE));

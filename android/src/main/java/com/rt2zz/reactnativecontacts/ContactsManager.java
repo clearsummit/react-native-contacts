@@ -1,27 +1,28 @@
 package com.rt2zz.reactnativecontacts;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ContentProviderOperation;
 import android.content.ContentProviderResult;
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
-import android.content.ContentUris;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.Manifest;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds;
+import android.provider.ContactsContract.CommonDataKinds.Note;
 import android.provider.ContactsContract.CommonDataKinds.Organization;
 import android.provider.ContactsContract.CommonDataKinds.StructuredName;
-import android.provider.ContactsContract.CommonDataKinds.Note;
 import android.provider.ContactsContract.RawContacts;
+
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
@@ -32,16 +33,16 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.bridge.WritableMap;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.io.InputStream;
 import java.util.Hashtable;
 
 public class ContactsManager extends ReactContextBaseJavaModule implements ActivityEventListener {
@@ -60,6 +61,31 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
     public ContactsManager(ReactApplicationContext reactContext) {
         super(reactContext);
         reactContext.addActivityEventListener(this);
+    }
+
+    protected static void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                                     @NonNull int[] grantResults) {
+        if (requestCallback == null) {
+            return;
+        }
+
+        if (requestCode != PERMISSION_REQUEST_CODE) {
+            requestCallback.invoke(null, PERMISSION_DENIED);
+            return;
+        }
+
+        Hashtable<String, Boolean> results = new Hashtable<>();
+        for (int i = 0; i < permissions.length; i++) {
+            results.put(permissions[i], grantResults[i] == PackageManager.PERMISSION_GRANTED);
+        }
+
+        if (results.containsKey(PERMISSION_READ_CONTACTS) && results.get(PERMISSION_READ_CONTACTS)) {
+            requestCallback.invoke(null, PERMISSION_AUTHORIZED);
+        } else {
+            requestCallback.invoke(null, PERMISSION_DENIED);
+        }
+
+        requestCallback = null;
     }
 
     /*
@@ -806,6 +832,15 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                 .withValue(StructuredName.SUFFIX, suffix);
         ops.add(op.build());
 
+        if (note != null) {
+            op = ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                    .withSelection(
+                            ContactsContract.Data.CONTACT_ID + "=? AND " + ContactsContract.Data.MIMETYPE + "= ?",
+                            new String[]{String.valueOf(recordID), ContactsContract.CommonDataKinds.Note.CONTENT_ITEM_TYPE})
+                    .withValue(ContactsContract.CommonDataKinds.Note.NOTE, note);
+            ops.add(op.build());
+        }
+
         op = ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
                 .withSelection(ContactsContract.Data.CONTACT_ID + "=? AND " + ContactsContract.Data.MIMETYPE + " = ?", new String[]{String.valueOf(recordID), Organization.CONTENT_ITEM_TYPE})
                 .withValue(Organization.COMPANY, company)
@@ -820,8 +855,8 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
             // remove existing phoneNumbers first
             op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
                     .withSelection(
-                        ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
-                        new String[]{String.valueOf(CommonDataKinds.Phone.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
+                            ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
+                            new String[]{String.valueOf(CommonDataKinds.Phone.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
                     );
             ops.add(op.build());
 
@@ -855,8 +890,8 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
             // remove existing emails first
             op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
                     .withSelection(
-                        ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
-                        new String[]{String.valueOf(CommonDataKinds.Email.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
+                            ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
+                            new String[]{String.valueOf(CommonDataKinds.Email.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
                     );
             ops.add(op.build());
 
@@ -886,10 +921,10 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
 
         if (postalAddresses != null){
             //remove existing addresses
-             op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+            op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
                     .withSelection(
-                        ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
-                        new String[]{String.valueOf(CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
+                            ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
+                            new String[]{String.valueOf(CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
                     );
             ops.add(op.build());
 
@@ -934,21 +969,22 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
         String recordID = contact.hasKey("recordID") ? contact.getString("recordID") : null;
 
         try {
-               Context ctx = getReactApplicationContext();
+            Context ctx = getReactApplicationContext();
 
-               Uri uri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI,recordID);
-               ContentResolver cr = ctx.getContentResolver();
-               int deleted = cr.delete(uri,null,null);
+            Uri uri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI,recordID);
+            ContentResolver cr = ctx.getContentResolver();
+            int deleted = cr.delete(uri,null,null);
 
-               if(deleted > 0)
-                 callback.invoke(null, recordID); // success
-               else
-                 callback.invoke(null, null); // something was wrong
+            if(deleted > 0)
+                callback.invoke(null, recordID); // success
+            else
+                callback.invoke(null, null); // something was wrong
 
         } catch (Exception e) {
             callback.invoke(e.toString(), null);
         }
     }
+
     /*
      * Check permission
      */
@@ -987,31 +1023,6 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
 
         requestCallback = callback;
         ActivityCompat.requestPermissions(currentActivity, new String[]{PERMISSION_READ_CONTACTS}, PERMISSION_REQUEST_CODE);
-    }
-
-    protected static void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                                     @NonNull int[] grantResults) {
-        if (requestCallback == null) {
-            return;
-        }
-
-        if (requestCode != PERMISSION_REQUEST_CODE) {
-            requestCallback.invoke(null, PERMISSION_DENIED);
-            return;
-        }
-
-        Hashtable<String, Boolean> results = new Hashtable<>();
-        for (int i = 0; i < permissions.length; i++) {
-            results.put(permissions[i], grantResults[i] == PackageManager.PERMISSION_GRANTED);
-        }
-
-        if (results.containsKey(PERMISSION_READ_CONTACTS) && results.get(PERMISSION_READ_CONTACTS)) {
-            requestCallback.invoke(null, PERMISSION_AUTHORIZED);
-        } else {
-            requestCallback.invoke(null, PERMISSION_DENIED);
-        }
-
-        requestCallback = null;
     }
 
     /*

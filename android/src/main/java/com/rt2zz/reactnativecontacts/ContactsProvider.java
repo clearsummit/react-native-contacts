@@ -27,6 +27,7 @@ import static android.provider.ContactsContract.CommonDataKinds.StructuredName;
 import static android.provider.ContactsContract.CommonDataKinds.Note;
 import static android.provider.ContactsContract.CommonDataKinds.Website;
 import static android.provider.ContactsContract.CommonDataKinds.StructuredPostal;
+import static android.provider.ContactsContract.CommonDataKinds.Im;
 
 public class ContactsProvider {
     public static final int ID_FOR_PROFILE_CONTACT = -1;
@@ -70,6 +71,10 @@ public class ContactsProvider {
         add(Website.URL);
         add(Event.START_DATE);
         add(Event.TYPE);
+        add(Im.DATA);
+        add(Im.TYPE);
+        add(Im.PROTOCOL);
+        add(Im.CUSTOM_PROTOCOL);
     }};
 
     private static final List<String> FULL_PROJECTION = new ArrayList<String>() {{
@@ -498,6 +503,13 @@ public class ContactsProvider {
                 case Note.CONTENT_ITEM_TYPE:
                     contact.note = cursor.getString(cursor.getColumnIndex(Note.NOTE));
                     break;
+                case Im.CONTENT_ITEM_TYPE:
+                    String username = cursor.getString(cursor.getColumnIndex(Im.DATA));
+                    String service = cursor.getString(cursor.getColumnIndex(Im.CUSTOM_PROTOCOL));
+                    if (!TextUtils.isEmpty(username) && !TextUtils.isEmpty(service)) {
+                        contact.imAddresses.add(new Contact.Item(service, username));
+                    }
+                    break;
             }
         }
 
@@ -547,6 +559,7 @@ public class ContactsProvider {
         private List<Item> phones = new ArrayList<>();
         private List<PostalAddressItem> postalAddresses = new ArrayList<>();
         private Birthday birthday;
+        private List<Item> imAddresses = new ArrayList<>();
 
 
         public Contact(String contactId) {
@@ -614,6 +627,15 @@ public class ContactsProvider {
                 birthdayMap.putInt("day", birthday.day);
                 contact.putMap("birthday", birthdayMap);
             }
+
+            WritableArray instantMessageAddresses = Arguments.createArray();
+            for (Item item : imAddresses) {
+                WritableMap map = Arguments.createMap();
+                map.putString("username", item.value);
+                map.putString("service", item.label);
+                instantMessageAddresses.pushMap(map);
+            }
+            contact.putArray("imAddresses", instantMessageAddresses);
 
             return contact;
         }

@@ -508,8 +508,46 @@ public class ContactsProvider {
                 case Im.CONTENT_ITEM_TYPE:
                     String username = cursor.getString(cursor.getColumnIndex(Im.DATA));
                     String service = cursor.getString(cursor.getColumnIndex(Im.CUSTOM_PROTOCOL));
-                    if (!TextUtils.isEmpty(username) && !TextUtils.isEmpty(service)) {
-                        contact.imAddresses.add(new Contact.Item(service, username));
+                    int protocol = cursor.getInt(cursor.getColumnIndex(Im.PROTOCOL));
+                    if (!TextUtils.isEmpty(username)) {
+                        if (service != null) {
+                            contact.imAddresses.add(new Contact.Item(service, username));
+                        } else {
+                            String label;
+                            switch (protocol) {
+                                case Im.PROTOCOL_AIM:
+                                    label = "AIM";
+                                    break;
+                                case Im.PROTOCOL_MSN:
+                                    label = "MSN";
+                                    break;
+                                case Im.PROTOCOL_YAHOO:
+                                    label = "Yahoo";
+                                    break;
+                                case Im.PROTOCOL_SKYPE:
+                                    label = "Skype";
+                                    break;
+                                case Im.PROTOCOL_QQ:
+                                    label = "QQ";
+                                    break;
+                                case Im.PROTOCOL_GOOGLE_TALK:
+                                    label = "Hangouts";
+                                    break;
+                                case Im.PROTOCOL_ICQ:
+                                    label = "ICQ";
+                                    break;
+                                case Im.PROTOCOL_JABBER:
+                                    label = "Jabber";
+                                    break;
+                                case Im.PROTOCOL_NETMEETING:
+                                    label = "Windows Live";
+                                    break;
+                                default:
+                                    label = "Custom";
+                                    break;
+                            }
+                            contact.imAddresses.add(new Contact.Item(label, username));
+                        }
                     }
                     break;
             }

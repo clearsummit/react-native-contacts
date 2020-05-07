@@ -683,14 +683,27 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
 
         for (int i = 0; i < numOfIMAddresses; i++)
         {
-            op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                    .withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Im.CONTENT_ITEM_TYPE)
-                    .withValue(CommonDataKinds.Im.DATA, imAccounts[i])
-                    .withValue(CommonDataKinds.Im.TYPE, CommonDataKinds.Im.TYPE_HOME)
-                    .withValue(CommonDataKinds.Im.PROTOCOL, CommonDataKinds.Im.CUSTOM_PROTOCOL)
-                    .withValue(CommonDataKinds.Im.CUSTOM_PROTOCOL, imProtocols[i]);
-            ops.add(op.build());
+            String label = imProtocols[i];
+            if (label != null) {
+                int protocol = mapStringToIMProtocol(label);
+                if (protocol == CommonDataKinds.Im.PROTOCOL_CUSTOM) {
+                    op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                            .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                            .withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Im.CONTENT_ITEM_TYPE)
+                            .withValue(CommonDataKinds.Im.DATA, imAccounts[i])
+                            .withValue(CommonDataKinds.Im.TYPE, CommonDataKinds.Im.TYPE_OTHER)
+                            .withValue(CommonDataKinds.Im.PROTOCOL, protocol)
+                            .withValue(CommonDataKinds.Im.CUSTOM_PROTOCOL, imProtocols[i]);
+                } else {
+                    op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                            .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                            .withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Im.CONTENT_ITEM_TYPE)
+                            .withValue(CommonDataKinds.Im.DATA, imAccounts[i])
+                            .withValue(CommonDataKinds.Im.TYPE, CommonDataKinds.Im.TYPE_HOME)
+                            .withValue(CommonDataKinds.Im.PROTOCOL, protocol);
+                }
+                ops.add(op.build());
+            }
         }
 
         Context ctx = getReactApplicationContext();
@@ -983,14 +996,27 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
 
             // add passed IM addresses
             for (int i = 0; i < numOfIMAddresses; i++) {
-                op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, String.valueOf(rawContactId))
-                        .withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Im.CONTENT_ITEM_TYPE)
-                        .withValue(CommonDataKinds.Im.DATA, imAccounts[i])
-                        .withValue(CommonDataKinds.Im.TYPE, CommonDataKinds.Im.TYPE_HOME)
-                        .withValue(CommonDataKinds.Im.PROTOCOL, CommonDataKinds.Im.CUSTOM_PROTOCOL)
-                        .withValue(CommonDataKinds.Im.CUSTOM_PROTOCOL, imProtocols[i]);
-                ops.add(op.build());
+                String label = imProtocols[i];
+                if (label != null) {
+                    int protocol = mapStringToIMProtocol(label);
+                    if (protocol == CommonDataKinds.Im.PROTOCOL_CUSTOM) {
+                        op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                .withValue(ContactsContract.Data.RAW_CONTACT_ID, String.valueOf(rawContactId))
+                                .withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Im.CONTENT_ITEM_TYPE)
+                                .withValue(CommonDataKinds.Im.DATA, imAccounts[i])
+                                .withValue(CommonDataKinds.Im.TYPE, CommonDataKinds.Im.TYPE_OTHER)
+                                .withValue(CommonDataKinds.Im.PROTOCOL, protocol)
+                                .withValue(CommonDataKinds.Im.CUSTOM_PROTOCOL, imProtocols[i]);
+                    } else {
+                        op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                .withValue(ContactsContract.Data.RAW_CONTACT_ID, String.valueOf(rawContactId))
+                                .withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Im.CONTENT_ITEM_TYPE)
+                                .withValue(CommonDataKinds.Im.DATA, imAccounts[i])
+                                .withValue(CommonDataKinds.Im.TYPE, CommonDataKinds.Im.TYPE_HOME)
+                                .withValue(CommonDataKinds.Im.PROTOCOL, protocol);
+                    }
+                    ops.add(op.build());
+                }
             }
         }
 
@@ -1194,6 +1220,44 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                 break;
         }
         return postalAddressType;
+    }
+
+    private int mapStringToIMProtocol(String label) {
+        String lowercaseLabel = label.toLowerCase();
+        int protocol;
+        switch (lowercaseLabel) {
+            case "aim":
+                protocol = CommonDataKinds.Im.PROTOCOL_AIM;
+                break;
+            case "msn":
+                protocol = CommonDataKinds.Im.PROTOCOL_MSN;
+                break;
+            case "yahoo":
+                protocol = CommonDataKinds.Im.PROTOCOL_YAHOO;
+                break;
+            case "skype":
+                protocol = CommonDataKinds.Im.PROTOCOL_SKYPE;
+                break;
+            case "qq":
+                protocol = CommonDataKinds.Im.PROTOCOL_QQ;
+                break;
+            case "hangouts":
+                protocol = CommonDataKinds.Im.PROTOCOL_GOOGLE_TALK;
+                break;
+            case "icq":
+                protocol = CommonDataKinds.Im.PROTOCOL_ICQ;
+                break;
+            case "jabber":
+                protocol = CommonDataKinds.Im.PROTOCOL_JABBER;
+                break;
+            case "windows live":
+                protocol = CommonDataKinds.Im.PROTOCOL_NETMEETING;
+                break;
+            default:
+                protocol = CommonDataKinds.Im.PROTOCOL_CUSTOM;
+                break;
+        }
+        return protocol;
     }
 
     @Override

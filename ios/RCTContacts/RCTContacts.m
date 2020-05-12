@@ -95,7 +95,8 @@ RCT_EXPORT_METHOD(getContactsMatchingString:(NSString *)string callback:(RCTResp
         CNContactThumbnailImageDataKey,
         CNContactUrlAddressesKey,
         CNContactBirthdayKey,
-        CNContactInstantMessageAddressesKey
+        CNContactInstantMessageAddressesKey,
+        CNContactSocialProfilesKey,
     ]];
     if(notesUsageEnabled) {
         [keys addObject: CNContactNoteKey];
@@ -138,7 +139,8 @@ RCT_EXPORT_METHOD(getContactsByPhoneNumber:(NSString *)string callback:(RCTRespo
                       CNContactThumbnailImageDataKey,
                       CNContactUrlAddressesKey,
                       CNContactBirthdayKey,
-                      CNContactInstantMessageAddressesKey
+                      CNContactInstantMessageAddressesKey,
+                      CNContactSocialProfilesKey,
                       ];
     CNPhoneNumber *cnPhoneNumber = [[CNPhoneNumber alloc] initWithStringValue:phoneNumber];
     NSArray *arrayOfContacts = [store unifiedContactsMatchingPredicate:[CNContact predicateForContactsMatchingPhoneNumber:cnPhoneNumber]
@@ -178,7 +180,8 @@ RCT_EXPORT_METHOD(getContactsByEmailAddress:(NSString *)string callback:(RCTResp
                       CNContactThumbnailImageDataKey,
                       CNContactUrlAddressesKey,
                       CNContactBirthdayKey,
-                      CNContactInstantMessageAddressesKey
+                      CNContactInstantMessageAddressesKey,
+                      CNContactSocialProfilesKey,
                       ];
     NSArray *arrayOfContacts = [store unifiedContactsMatchingPredicate:[CNContact predicateForContactsMatchingEmailAddress:emailAddress]
                                                            keysToFetch:keys
@@ -225,7 +228,8 @@ RCT_EXPORT_METHOD(getContactsByEmailAddress:(NSString *)string callback:(RCTResp
                                        CNContactImageDataAvailableKey,
                                        CNContactUrlAddressesKey,
                                        CNContactBirthdayKey,
-                                       CNContactInstantMessageAddressesKey
+                                       CNContactInstantMessageAddressesKey,
+                                       CNContactSocialProfilesKey,
                                        ]];
 
     CNContactFetchRequest * request = [[CNContactFetchRequest alloc]initWithKeysToFetch:keysToFetch];
@@ -278,7 +282,8 @@ RCT_EXPORT_METHOD(getCount:(RCTResponseSenderBlock) callback)
         CNContactImageDataAvailableKey,
         CNContactUrlAddressesKey,
         CNContactBirthdayKey,
-        CNContactInstantMessageAddressesKey
+        CNContactInstantMessageAddressesKey,
+        CNContactSocialProfilesKey,
     ]];
     if(notesUsageEnabled) {
         [keysToFetch addObject: CNContactNoteKey];
@@ -484,6 +489,35 @@ RCT_EXPORT_METHOD(getCount:(RCTResponseSenderBlock) callback)
 
     [output setObject: imAddresses forKey:@"imAddresses"];
     //end instant message addresses
+    
+    //handle social profiles
+    NSMutableArray *socialProfiles = [[NSMutableArray alloc] init];
+    for (CNLabeledValue<CNSocialProfile*>* labeledValue in person.socialProfiles) {
+        NSString *label = [CNLabeledValue localizedStringForLabel:[labeledValue label]];
+        CNSocialProfile* socialProfile = labeledValue.value;
+        NSMutableDictionary* dict = [NSMutableDictionary dictionary];
+        if (socialProfile) {
+            if (!label) {
+                label = [CNLabeledValue localizedStringForLabel:@"other"];
+            }
+            [dict setObject:label forKey:@"label"];
+            if (socialProfile.service) {
+                [dict setObject: socialProfile.service forKey:@"service"];
+            }
+            if (socialProfile.username) {
+                [dict setObject: socialProfile.username forKey:@"username"];
+            }
+            if (socialProfile.urlString) {
+                [dict setObject: socialProfile.urlString forKey:@"urlString"];
+            }
+            if (socialProfile.userIdentifier) {
+                [dict setObject: socialProfile.userIdentifier forKey:@"userIdentifier"];
+            }
+            [socialProfiles addObject:dict];
+        }
+    }
+    [output setObject:socialProfiles forKey:@"socialProfiles"];
+    //end social profiles
 
     [output setValue:[NSNumber numberWithBool:person.imageDataAvailable] forKey:@"hasThumbnail"];
     if (withThumbnails) {
@@ -608,7 +642,8 @@ RCT_EXPORT_METHOD(getContactById:(nonnull NSString *)recordID callback:(RCTRespo
         CNContactImageDataAvailableKey,
         CNContactUrlAddressesKey,
         CNContactBirthdayKey,
-        CNContactInstantMessageAddressesKey
+        CNContactInstantMessageAddressesKey,
+        CNContactSocialProfilesKey,
     ]];
     if(notesUsageEnabled) {
         [keysToFetch addObject: CNContactNoteKey];
@@ -813,7 +848,8 @@ RCT_EXPORT_METHOD(updateContact:(NSDictionary *)contactData callback:(RCTRespons
         CNContactImageDataKey,
         CNContactUrlAddressesKey,
         CNContactBirthdayKey,
-        CNContactInstantMessageAddressesKey
+        CNContactInstantMessageAddressesKey,
+        CNContactSocialProfilesKey,
     ]];
     if(notesUsageEnabled) {
         [keysToFetch addObject: CNContactNoteKey];
@@ -970,6 +1006,18 @@ RCT_EXPORT_METHOD(updateContact:(NSDictionary *)contactData callback:(RCTRespons
     if(thumbnailPath && [thumbnailPath rangeOfString:@"rncontacts_"].location == NSNotFound) {
         contact.imageData = [RCTContacts imageData:thumbnailPath];
     }
+    
+    NSMutableArray *socialProfiles = [[NSMutableArray alloc] init];
+    for (id socialProfileData in [contactData valueForKey:@"socialProfiles"]) {
+        NSString *label = [socialProfileData valueForKey:@"label"];
+        NSString *service = [socialProfileData valueForKey:@"service"];
+        NSString *username = [socialProfileData valueForKey:@"username"];
+        NSString *urlString = [socialProfileData valueForKey:@"urlString"];
+        NSString *userIdentifier = [socialProfileData valueForKey:@"userIdentifier"];
+        CNSocialProfile *socialProfile = [[CNSocialProfile alloc] initWithUrlString:urlString username:username userIdentifier:userIdentifier service:service];
+        [socialProfiles addObject:[[CNLabeledValue alloc] initWithLabel:label value:socialProfile]];
+    }
+    contact.socialProfiles = socialProfiles;
 }
 
 + (NSData*) imageData:(NSString*)sourceUri
